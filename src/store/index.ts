@@ -315,3 +315,63 @@ export const useClientStore = create<ClientStore>()((set) => ({
     set(s => ({ clients: s.clients.filter(c => c.id !== id) }));
   },
 }));
+
+// ── TESTIMONIAL STORE ─────────────────────────────────────────────
+export interface Testimonial {
+  id: string;
+  client_name: string;
+  service_id: string;
+  rating: number;
+  text: string;
+  approved: boolean;
+  created_at: string;
+}
+
+interface TestimonialStore {
+  testimonials: Testimonial[];
+  loading: boolean;
+  fetch: () => Promise<void>;
+  approve: (id: string) => Promise<void>;
+  reject: (id: string) => Promise<void>;
+  subscribeRealtime: () => () => void;
+}
+
+export const useTestimonialStore = create<TestimonialStore>()((set) => ({
+  testimonials: [],
+  loading: false,
+
+  fetch: async () => {
+    set({ loading: true });
+    const { data } = await supabase
+      .from('testimonials')
+      .select('*')
+      .order('created_at', { ascending: false });
+    set({ testimonials: (data as Testimonial[]) ?? [], loading: false });
+  },
+
+  approve: async (id) => {
+    await supabase.from('testimonials').update({ approved: true }).eq('id', id);
+    set(s => ({
+      testimonials: s.testimonials.map(t => t.id === id ? { ...t, approved: true } : t),
+    }));
+  },
+
+  reject: async (id) => {
+    await supabase.from('testimonials').delete().eq('id', id);
+    set(s => ({ testimonials: s.testimonials.filter(t => t.id !== id) }));
+  },
+
+  subscribeRealtime: () => {
+    const channel = supabase
+      .channel('testimonials-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'testimonials' },
+        (payload) => {
+          set(s => ({
+            testimonials: [payload.new as Testimonial, ...s.testimonials],
+          }));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  },
+}));

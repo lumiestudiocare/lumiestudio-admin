@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faGauge, faCalendarDays, faUsers, faScissors,
   faChartLine, faComments, faRightFromBracket,
-  faBars, faXmark, faAddressBook,
+  faBars, faXmark, faAddressBook, faStar,
 } from '@fortawesome/free-solid-svg-icons';
-import { useAuthStore, useNotificationStore } from '../../store';
+import { useAuthStore, useNotificationStore, useTestimonialStore } from '../../store';
 import logoImg from '../../assets/logo.png';
 
 const NAV = [
@@ -16,6 +16,7 @@ const NAV = [
   { icon: faUsers,        label: 'Profissionais',   to: '/professionals' },
   { icon: faScissors,     label: 'Serviços',        to: '/services' },
   { icon: faChartLine,    label: 'Relatórios',      to: '/reports' },
+  { icon: faStar,         label: 'Depoimentos',     to: '/testimonials' },
   { icon: faComments,     label: 'Chat',            to: '/chat' },
 ];
 
@@ -24,6 +25,10 @@ export const Sidebar: React.FC = () => {
   const navigate  = useNavigate();
   const logout    = useAuthStore(s => s.logout);
   const unread    = useNotificationStore(s => s.unreadCount);
+  const pendingTestimonials = useTestimonialStore(s => s.testimonials.filter(t => !t.approved).length);
+  const fetchTestimonials   = useTestimonialStore(s => s.fetch);
+
+  useEffect(() => { fetchTestimonials(); }, []);
   const [open, setOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -92,6 +97,12 @@ export const Sidebar: React.FC = () => {
                   marginLeft: 'auto', background: '#ef4444', color: 'white',
                   fontSize: '.6rem', padding: '.1rem .45rem', borderRadius: 10, fontWeight: 600,
                 }}>{unread}</span>
+              )}
+              {item.to === '/testimonials' && pendingTestimonials > 0 && (
+                <span style={{
+                  marginLeft: 'auto', background: 'var(--gold)', color: 'white',
+                  fontSize: '.6rem', padding: '.1rem .45rem', borderRadius: 10, fontWeight: 600,
+                }}>{pendingTestimonials}</span>
               )}
             </Link>
           ))}
