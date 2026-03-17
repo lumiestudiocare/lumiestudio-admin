@@ -76,7 +76,7 @@ export const LoginPage: React.FC = () => {
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '.75rem', color: 'var(--nude)' }}>
-          <a href="https://www.lumiestudio.com.br" style={{ color: 'var(--nude)' }}>← Voltar ao site</a>
+          <a href="https://lumiestudio.com.br" style={{ color: 'var(--nude)' }}>← Voltar ao site</a>
         </p>
       </div>
     </div>

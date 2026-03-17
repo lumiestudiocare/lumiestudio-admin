@@ -99,7 +99,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Bottom */}
         <div style={{ padding: '1rem 1.4rem', borderTop: '1px solid rgba(215,166,41,.1)' }}>
-          <a href="https://www.lumiestudio.com.br" target="_blank" rel="noreferrer"
+          <a href="https://lumiestudio.com.br" target="_blank" rel="noreferrer"
             style={{ fontSize: '.72rem', letterSpacing: '.15em', color: 'rgba(248,240,245,.4)', display: 'block', marginBottom: '.8rem' }}>
             ↗ Ver site público
           </a>
