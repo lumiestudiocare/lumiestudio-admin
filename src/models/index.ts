@@ -77,3 +77,19 @@ export interface DashboardStats {
   revenueMonth: number;
   revenueTotal: number;
 }
+
+export interface Client {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  birthdate?: string;
+  notes?: string;
+  manutencao: number;
+  created_at: string;
+  updated_at?: string;
+  // computed
+  bookings?: Booking[];
+  total_spent?: number;
+  last_visit?: string;
+}

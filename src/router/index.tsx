@@ -8,6 +8,7 @@ import { ProfessionalsPage } from '../views/professionals/ProfessionalsPage';
 import { ServicesPage }      from '../views/services/ServicesPage';
 import { ReportsPage }       from '../views/reports/ReportsPage';
 import { ChatPage }          from '../views/chat/ChatPage';
+import { ClientsPage }       from '../views/clients/ClientsPage';
 
 const Protected: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuthStore();
@@ -33,6 +34,7 @@ export const AppRouter: React.FC = () => {
         <Route path="/services"      element={<Protected><ServicesPage /></Protected>} />
         <Route path="/reports"       element={<Protected><ReportsPage /></Protected>} />
         <Route path="/chat"          element={<Protected><ChatPage /></Protected>} />
+        <Route path="/clients"       element={<Protected><ClientsPage /></Protected>} />
         <Route path="*"              element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

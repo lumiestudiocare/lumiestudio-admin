@@ -154,3 +154,28 @@ on conflict do nothing;
 alter publication supabase_realtime add table bookings;
 alter publication supabase_realtime add table chat_messages;
 alter publication supabase_realtime add table notifications;
+
+-- ── CLIENTS TABLE (adicionado) ────────────────────────────────────
+create table if not exists clients (
+  id           uuid primary key default uuid_generate_v4(),
+  name         text not null,
+  phone        text,
+  email        text,
+  birthdate    date,
+  notes        text,              -- observações gerais
+  manutencao   int default 0,     -- saldo de manutenções
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now()
+);
+
+create trigger clients_updated_at
+  before update on clients
+  for each row execute function update_updated_at();
+
+alter table clients enable row level security;
+create policy "clients_all_auth" on clients for all using (auth.role() = 'authenticated');
+
+-- Relaciona bookings com clients
+alter table bookings add column if not exists client_id uuid references clients(id) on delete set null;
+
+alter publication supabase_realtime add table clients;

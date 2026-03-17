@@ -278,3 +278,40 @@ export const useChatStore = create<ChatStore>()((set) => ({
     return () => { supabase.removeChannel(channel); };
   },
 }));
+
+// ── CLIENT STORE ──────────────────────────────────────────────────
+interface ClientStore {
+  clients: import('../models').Client[];
+  loading: boolean;
+  fetch: () => Promise<void>;
+  save: (c: Partial<import('../models').Client>) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+}
+
+export const useClientStore = create<ClientStore>()((set) => ({
+  clients: [],
+  loading: false,
+
+  fetch: async () => {
+    set({ loading: true });
+    const { data } = await supabase
+      .from('clients')
+      .select('*')
+      .order('name');
+    set({ clients: (data as import('../models').Client[]) ?? [], loading: false });
+  },
+
+  save: async (c) => {
+    if (c.id) {
+      await supabase.from('clients').update(c).eq('id', c.id);
+    } else {
+      await supabase.from('clients').insert(c);
+    }
+    useClientStore.getState().fetch();
+  },
+
+  remove: async (id) => {
+    await supabase.from('clients').delete().eq('id', id);
+    set(s => ({ clients: s.clients.filter(c => c.id !== id) }));
+  },
+}));

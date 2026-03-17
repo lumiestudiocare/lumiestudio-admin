@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faGauge, faCalendarDays, faUsers, faScissors,
   faChartLine, faComments, faRightFromBracket,
-  faBars, faXmark,
+  faBars, faXmark, faAddressBook,
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuthStore, useNotificationStore } from '../../store';
 import logoImg from '../../assets/logo.png';
@@ -12,6 +12,7 @@ import logoImg from '../../assets/logo.png';
 const NAV = [
   { icon: faGauge,        label: 'Dashboard',      to: '/dashboard' },
   { icon: faCalendarDays, label: 'Agendamentos',    to: '/bookings' },
+  { icon: faAddressBook,  label: 'Clientes',        to: '/clients' },
   { icon: faUsers,        label: 'Profissionais',   to: '/professionals' },
   { icon: faScissors,     label: 'Serviços',        to: '/services' },
   { icon: faChartLine,    label: 'Relatórios',      to: '/reports' },
