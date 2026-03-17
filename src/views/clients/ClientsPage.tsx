@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPlus, faPen, faTrash, faSearch,
-  faStar, faPhone, faEnvelope, faCalendarDays, faNoteSticky,
+  faStar, faPhone, faEnvelope, faCalendarDays, faNoteSticky, faCalendarCheck,
 } from '@fortawesome/free-solid-svg-icons';
 import { AdminLayout } from '../../components/layout/AdminLayout';
-import { useClientStore, useBookingStore } from '../../store';
+import { useClientStore } from '../../store';
 import type { Client } from '../../models';
 
 const empty = (): Partial<Client> => ({
@@ -16,7 +17,7 @@ const empty = (): Partial<Client> => ({
 
 export const ClientsPage: React.FC = () => {
   const { clients, loading, fetch, save, remove } = useClientStore();
-  const { bookings, fetch: fetchBookings }         = useBookingStore();
+  const navigate = useNavigate();
   const [search,     setSearch]     = useState('');
   const [modal,      setModal]      = useState(false);
   const [form,       setForm]       = useState<Partial<Client>>(empty());
@@ -24,19 +25,16 @@ export const ClientsPage: React.FC = () => {
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [detail,     setDetail]     = useState<Client | null>(null);
 
-  useEffect(() => { fetch(); fetchBookings(); }, []);
+  useEffect(() => { fetch(); }, []);
 
-  // Enriches clients with booking stats
+  // bookings now come via FK join from Supabase
   const enriched = useMemo(() =>
     clients.map(c => {
-      const cb = bookings.filter(b =>
-        b.client_email?.toLowerCase() === c.email?.toLowerCase() ||
-        b.client_name?.toLowerCase()  === c.name.toLowerCase()
-      );
-      const total_spent = cb.reduce((s, b) => s + (b.payment_amount ?? 0), 0);
-      const last_visit  = cb.sort((a, b) => b.date.localeCompare(a.date))[0]?.date;
+      const cb = c.bookings ?? [];
+      const total_spent = cb.reduce((s, b) => s + ((b as any).payment_amount ?? 0), 0);
+      const last_visit  = [...cb].sort((a, b) => ((b as any).date ?? '').localeCompare((a as any).date ?? ''))[0]?.date;
       return { ...c, bookings: cb, total_spent, last_visit };
-    }), [clients, bookings]
+    }), [clients]
   );
 
   const filtered = useMemo(() =>
@@ -255,13 +253,19 @@ export const ClientsPage: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--blush-dark)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--blush-dark)', flexWrap: 'wrap' }}>
               <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(detail.id)}>
                 <FontAwesomeIcon icon={faTrash} /> Excluir
               </button>
               <button className="btn btn-outline btn-sm" onClick={() => { setDetail(null); openEdit(detail); }}>
                 <FontAwesomeIcon icon={faPen} /> Editar
               </button>
+              {(detail.bookings?.length ?? 0) > 0 && (
+                <button className="btn btn-sm" onClick={() => { setDetail(null); navigate('/bookings'); }}
+                  style={{ background: 'var(--gold-bg)', color: 'var(--brown)', border: '1px solid rgba(215,166,41,.3)' }}>
+                  <FontAwesomeIcon icon={faCalendarCheck} /> Ver agendamentos
+                </button>
+              )}
               <button className="btn btn-ghost btn-sm" onClick={() => setDetail(null)}>Fechar</button>
             </div>
           </div>

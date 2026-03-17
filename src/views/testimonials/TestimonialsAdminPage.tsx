@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -21,6 +22,7 @@ const getServiceIcon = (id: string) => SERVICES.find(s => s.id === id)?.icon ?? 
 
 export const TestimonialsAdminPage: React.FC = () => {
   const { testimonials, loading, fetch, approve, reject, subscribeRealtime } = useTestimonialStore();
+  const navigate = useNavigate();
   const [filter, setFilter]       = useState<'all' | 'pending' | 'approved'>('pending');
   const [selected, setSelected]   = useState<Testimonial | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
@@ -226,7 +228,26 @@ export const TestimonialsAdminPage: React.FC = () => {
           <div className="modal-box" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Depoimento</h3>
-              <button onClick={() => setSelected(null)} style={{ color: 'var(--nude)', fontSize: '1.1rem' }}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.8rem' }}>
+                {(selected as any).client_id && (
+                  <button
+                    onClick={() => { setSelected(null); navigate('/clients'); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '.4rem',
+                      fontSize: '.68rem', letterSpacing: '.12em', textTransform: 'uppercase',
+                      color: 'var(--gold)', background: 'var(--gold-bg)',
+                      border: '1px solid rgba(215,166,41,.3)',
+                      padding: '.3rem .8rem', borderRadius: 2, cursor: 'pointer',
+                      fontFamily: 'var(--font-body)', transition: 'all .2s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget.style.background = 'var(--gold)'); (e.currentTarget.style.color = 'white'); }}
+                    onMouseLeave={e => { (e.currentTarget.style.background = 'var(--gold-bg)'); (e.currentTarget.style.color = 'var(--gold)'); }}
+                  >
+                    👤 Ver cliente
+                  </button>
+                )}
+                <button onClick={() => setSelected(null)} style={{ color: 'var(--nude)', fontSize: '1.1rem' }}>✕</button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>

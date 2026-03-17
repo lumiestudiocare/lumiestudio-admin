@@ -55,7 +55,7 @@ export const useBookingStore = create<BookingStore>()((set, get) => ({
     set({ loading: true });
     const { data } = await supabase
       .from('bookings')
-      .select('*, service:services(*), professional:professionals(*)')
+      .select('*, service:services(*), professional:professionals(*), client:clients(*)')
       .order('created_at', { ascending: false });
     set({ bookings: (data as Booking[]) ?? [], loading: false });
   },
@@ -296,7 +296,7 @@ export const useClientStore = create<ClientStore>()((set) => ({
     set({ loading: true });
     const { data } = await supabase
       .from('clients')
-      .select('*')
+      .select('*, bookings(*)')
       .order('name');
     set({ clients: (data as import('../models').Client[]) ?? [], loading: false });
   },
@@ -344,7 +344,7 @@ export const useTestimonialStore = create<TestimonialStore>()((set) => ({
     set({ loading: true });
     const { data } = await supabase
       .from('testimonials')
-      .select('*')
+      .select('*, client:clients(*)')
       .order('created_at', { ascending: false });
     set({ testimonials: (data as Testimonial[]) ?? [], loading: false });
   },

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faChevronRight, faListUl, faCalendarDays, faTrash, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChevronRight, faListUl, faCalendarDays, faTrash, faEye, faUser } from '@fortawesome/free-solid-svg-icons';
 import { AdminLayout } from '../../components/layout/AdminLayout';
 import { useBookingStore } from '../../store';
 import type { Booking, BookingStatus } from '../../models';
@@ -17,6 +18,7 @@ const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export const BookingsPage: React.FC = () => {
   const { bookings, fetch, updateStatus, deleteBooking, subscribeRealtime } = useBookingStore();
+  const navigate = useNavigate();
   const [view,        setView]        = useState<'list' | 'calendar'>('list');
   const [selected,    setSelected]    = useState<Booking | null>(null);
   const [filterStatus,setFilterStatus]= useState('all');
@@ -235,7 +237,27 @@ export const BookingsPage: React.FC = () => {
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Detalhes do Agendamento</h3>
-              <button onClick={() => setSelected(null)} style={{ color: 'var(--nude)', fontSize: '1.1rem' }}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.8rem' }}>
+                {selected.client_id && (
+                  <button
+                    onClick={() => { setSelected(null); navigate('/clients'); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '.4rem',
+                      fontSize: '.68rem', letterSpacing: '.12em', textTransform: 'uppercase',
+                      color: 'var(--gold)', background: 'var(--gold-bg)',
+                      border: '1px solid rgba(215,166,41,.3)',
+                      padding: '.3rem .8rem', borderRadius: 2, cursor: 'pointer',
+                      transition: 'all .2s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget.style.background = 'var(--gold)'); (e.currentTarget.style.color = 'white'); }}
+                    onMouseLeave={e => { (e.currentTarget.style.background = 'var(--gold-bg)'); (e.currentTarget.style.color = 'var(--gold)'); }}
+                    title="Ver perfil da cliente"
+                  >
+                    <FontAwesomeIcon icon={faUser} /> Ver cliente
+                  </button>
+                )}
+                <button onClick={() => setSelected(null)} style={{ color: 'var(--nude)', fontSize: '1.1rem' }}>✕</button>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.8rem', marginBottom: '1.5rem' }}>

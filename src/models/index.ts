@@ -45,8 +45,10 @@ export interface Booking {
   paid_at?: string;
   created_at: string;
   updated_at?: string;
+  client_id?: string;
   service?: Service;
   professional?: Professional;
+  client?: Client;
 }
 
 export interface ChatMessage {
@@ -88,8 +90,7 @@ export interface Client {
   manutencao: number;
   created_at: string;
   updated_at?: string;
-  // computed
-  bookings?: Booking[];
-  total_spent?: number;
-  last_visit?: string;
+  bookings?: Booking[];       // joined via client_id FK
+  total_spent?: number;       // computed
+  last_visit?: string;        // computed
 }
