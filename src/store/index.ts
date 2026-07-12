@@ -1,377 +1,124 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from '../services/supabase';
-import type { Booking, BookingStatus, Service, Professional, Notification, ChatMessage } from '../models';
+import type { Booking, BookingStatus, Service } from '../models';
+import { ADMIN_CREDENTIALS, SERVICES } from '../services/data';
+import { supabase, supabaseReady } from '../services/supabase';
 
-// ── AUTH STORE ────────────────────────────────────────────────────
-interface AuthStore {
-  user: { email: string; id: string } | null;
+// ── CATALOG STORE — serviços vindos do Supabase (respeita o toggle do admin) ──
+interface CatalogStore {
+  services: Service[];        // todos os serviços, para lookups de nome/ícone (histórico)
+  activeServices: Service[];  // só os disponíveis para novo agendamento
   loading: boolean;
-  login: (email: string, password: string) => Promise<string | null>;
-  logout: () => Promise<void>;
-  init: () => Promise<void>;
+  loaded: boolean;
+  fetch: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthStore>()((set) => ({
-  user: null,
-  loading: true,
+export const useCatalogStore = create<CatalogStore>()((set) => ({
+  // Semente estática como fallback antes do primeiro fetch (ou se o Supabase cair)
+  services: SERVICES,
+  activeServices: SERVICES.filter(s => s.active),
+  loading: false,
+  loaded: false,
 
-  init: async () => {
-    const { data } = await supabase.auth.getSession();
-    const u = data.session?.user;
-    set({ user: u ? { id: u.id, email: u.email ?? '' } : null, loading: false });
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const u2 = session?.user;
-      set({ user: u2 ? { id: u2.id, email: u2.email ?? '' } : null });
-    });
-  },
-
-  login: async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error?.message ?? null;
-  },
-
-  logout: async () => {
-    await supabase.auth.signOut();
-    set({ user: null });
+  fetch: async () => {
+    if (!supabaseReady) return; // mantém a semente estática
+    set({ loading: true });
+    const { data, error } = await supabase.from('services').select('*').order('name');
+    if (!error && data && data.length > 0) {
+      const services = data as Service[];
+      set({ services, activeServices: services.filter(s => s.active), loading: false, loaded: true });
+    } else {
+      set({ loading: false, loaded: true });
+    }
   },
 }));
 
-// ── BOOKING STORE ─────────────────────────────────────────────────
+// ── BOOKING STORE — localStorage + Supabase sync ─────────────────
 interface BookingStore {
   bookings: Booking[];
-  loading: boolean;
-  fetch: () => Promise<void>;
-  updateStatus: (id: string, status: BookingStatus) => Promise<void>;
-  deleteBooking: (id: string) => Promise<void>;
-  subscribeRealtime: () => () => void;
+  addBooking: (booking: Omit<Booking, 'id' | 'createdAt'>) => Booking;
+  updateStatus: (id: string, status: BookingStatus) => void;
+  deleteBooking: (id: string) => void;
+  getBookingsByDate: (date: string) => Booking[];
+  getBookedTimes: (date: string, professionalId: string) => string[];
 }
 
-export const useBookingStore = create<BookingStore>()((set, get) => ({
-  bookings: [],
-  loading: false,
-
-  fetch: async () => {
-    set({ loading: true });
-    const { data } = await supabase
-      .from('bookings')
-      .select('*, service:services(*), professional:professionals(*), client:clients(*)')
-      .order('created_at', { ascending: false });
-    set({ bookings: (data as Booking[]) ?? [], loading: false });
-  },
-
-  updateStatus: async (id, status) => {
-    await supabase.from('bookings').update({ status }).eq('id', id);
-    set(s => ({ bookings: s.bookings.map(b => b.id === id ? { ...b, status } : b) }));
-  },
-
-  deleteBooking: async (id) => {
-    await supabase.from('bookings').delete().eq('id', id);
-    set(s => ({ bookings: s.bookings.filter(b => b.id !== id) }));
-  },
-
-  subscribeRealtime: () => {
-    const channel = supabase
-      .channel('bookings-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' },
-        () => get().fetch()
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  },
-}));
-
-// ── PROFESSIONAL STORE ────────────────────────────────────────────
-interface ProfessionalStore {
-  professionals: Professional[];
-  loading: boolean;
-  fetch: () => Promise<void>;
-  save: (p: Partial<Professional> & { id?: string }) => Promise<void>;
-  toggle: (id: string, active: boolean) => Promise<void>;
-}
-
-export const useProfessionalStore = create<ProfessionalStore>()((set) => ({
-  professionals: [],
-  loading: false,
-
-  fetch: async () => {
-    set({ loading: true });
-    const { data: profs } = await supabase.from('professionals').select('*').order('name');
-    const { data: ps }    = await supabase.from('professional_services').select('*');
-    const professionals   = (profs ?? []).map((p: Professional) => ({
-      ...p,
-      services: (ps ?? []).filter((x: { professional_id: string; service_id: string }) => x.professional_id === p.id).map((x: { professional_id: string; service_id: string }) => x.service_id as import('../models').ServiceId),
-    }));
-    set({ professionals, loading: false });
-  },
-
-  save: async (p) => {
-    const { services, ...prof } = p;
-    if (prof.id) {
-      await supabase.from('professionals').update(prof).eq('id', prof.id);
-    } else {
-      const { data } = await supabase.from('professionals').insert(prof).select().single();
-      prof.id = (data as Professional).id;
-    }
-    if (services && prof.id) {
-      await supabase.from('professional_services').delete().eq('professional_id', prof.id);
-      if (services.length > 0) {
-        await supabase.from('professional_services').insert(
-          services.map(s => ({ professional_id: prof.id, service_id: s }))
-        );
-      }
-    }
-    useProfessionalStore.getState().fetch();
-  },
-
-  toggle: async (id, active) => {
-    await supabase.from('professionals').update({ active }).eq('id', id);
-    useProfessionalStore.getState().fetch();
-  },
-}));
-
-// ── SERVICE STORE ─────────────────────────────────────────────────
-interface ServiceStore {
-  services: Service[];
-  loading: boolean;
-  fetch: () => Promise<void>;
-  save: (s: Partial<Service>) => Promise<void>;
-  toggle: (id: string, active: boolean) => Promise<void>;
-}
-
-export const useServiceStore = create<ServiceStore>()((set) => ({
-  services: [],
-  loading: false,
-
-  fetch: async () => {
-    set({ loading: true });
-    const { data } = await supabase.from('services').select('*').order('name');
-    set({ services: (data as Service[]) ?? [], loading: false });
-  },
-
-  save: async (s) => {
-    if (s.id) await supabase.from('services').update(s).eq('id', s.id);
-    else       await supabase.from('services').insert(s);
-    useServiceStore.getState().fetch();
-  },
-
-  toggle: async (id, active) => {
-    await supabase.from('services').update({ active }).eq('id', id);
-    useServiceStore.getState().fetch();
-  },
-}));
-
-// ── NOTIFICATION STORE ────────────────────────────────────────────
-interface NotificationStore {
-  notifications: Notification[];
-  unreadCount: number;
-  fetch: () => Promise<void>;
-  markRead: (id: string) => Promise<void>;
-  markAllRead: () => Promise<void>;
-  subscribeRealtime: () => () => void;
-}
-
-export const useNotificationStore = create<NotificationStore>()(
+export const useBookingStore = create<BookingStore>()(
   persist(
-    (set) => ({
-      notifications: [],
-      unreadCount: 0,
+    (set, get) => ({
+      bookings: [],
 
-      fetch: async () => {
-        const { data } = await supabase
-          .from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(50);
-        const notifs = (data as Notification[]) ?? [];
-        set({ notifications: notifs, unreadCount: notifs.filter(n => !n.read).length });
-      },
+      addBooking: (data) => {
+        const booking: Booking = {
+          ...data,
+          id: `bk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          createdAt: new Date().toISOString(),
+        };
+        set(s => ({ bookings: [...s.bookings, booking] }));
 
-      markRead: async (id) => {
-        await supabase.from('notifications').update({ read: true }).eq('id', id);
-        set(s => {
-          const notifications = s.notifications.map(n => n.id === id ? { ...n, read: true } : n);
-          return { notifications, unreadCount: notifications.filter(n => !n.read).length };
+        // Sync to Supabase (fire and forget)
+        supabase.from('bookings').insert({
+          id:              booking.id,
+          client_name:     booking.clientName,
+          client_phone:    booking.clientPhone,
+          client_email:    booking.clientEmail,
+          service_id:      booking.serviceId,
+          professional_id: booking.professionalId,
+          date:            booking.date,
+          time:            booking.time + ':00',
+          notes:           booking.notes,
+          status:          booking.status,
+        }).then(({ error }) => {
+          if (error) console.warn('Supabase sync failed:', error.message);
         });
+
+        return booking;
       },
 
-      markAllRead: async () => {
-        await supabase.from('notifications').update({ read: true }).eq('read', false);
+      updateStatus: (id, status) => {
         set(s => ({
-          notifications: s.notifications.map(n => ({ ...n, read: true })),
-          unreadCount: 0,
+          bookings: s.bookings.map(b => b.id === id ? { ...b, status } : b),
         }));
+        supabase.from('bookings').update({ status }).eq('id', id).then(() => {});
       },
 
-      subscribeRealtime: () => {
-        const channel = supabase
-          .channel('notifications-realtime')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' },
-            (payload) => {
-              const n = payload.new as Notification;
-              set(s => ({
-                notifications: [n, ...s.notifications],
-                unreadCount: s.unreadCount + 1,
-              }));
-            }
-          )
-          .subscribe();
-        return () => { supabase.removeChannel(channel); };
+      deleteBooking: (id) => {
+        set(s => ({ bookings: s.bookings.filter(b => b.id !== id) }));
+        supabase.from('bookings').delete().eq('id', id).then(() => {});
       },
+
+      getBookingsByDate: (date) =>
+        get().bookings.filter(b => b.date === date),
+
+      getBookedTimes: (date, professionalId) =>
+        get().bookings
+          .filter(b => b.date === date && b.professionalId === professionalId && b.status !== 'cancelled')
+          .map(b => b.time),
     }),
-    { name: 'lumie-admin-notifications', partialize: (s) => ({ notifications: s.notifications }) }
+    { name: 'lumie-bookings' }
   )
 );
 
-// ── CHAT STORE ────────────────────────────────────────────────────
-interface ChatStore {
-  messages: Record<string, ChatMessage[]>; // bookingId → messages
-  loading: boolean;
-  fetchMessages: (bookingId: string) => Promise<void>;
-  sendMessage: (bookingId: string, message: string, senderName: string) => Promise<void>;
-  subscribeRealtime: (bookingId: string) => () => void;
+// ── AUTH STORE ────────────────────────────────────────────────────
+interface AuthStore {
+  isAuthenticated: boolean;
+  login: (username: string, password: string) => boolean;
+  logout: () => void;
 }
 
-export const useChatStore = create<ChatStore>()((set) => ({
-  messages: {},
-  loading: false,
-
-  fetchMessages: async (bookingId) => {
-    set({ loading: true });
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('booking_id', bookingId)
-      .order('created_at');
-    set(s => ({ messages: { ...s.messages, [bookingId]: (data as ChatMessage[]) ?? [] }, loading: false }));
-  },
-
-  sendMessage: async (bookingId, message, senderName) => {
-    const msg = { booking_id: bookingId, sender: senderName, sender_role: 'admin' as const, message, read: false };
-    const { data } = await supabase.from('chat_messages').insert(msg).select().single();
-    if (data) {
-      set(s => ({
-        messages: {
-          ...s.messages,
-          [bookingId]: [...(s.messages[bookingId] ?? []), data as ChatMessage],
-        },
-      }));
-    }
-  },
-
-  subscribeRealtime: (bookingId) => {
-    const channel = supabase
-      .channel(`chat-${bookingId}`)
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `booking_id=eq.${bookingId}` },
-        (payload) => {
-          const msg = payload.new as ChatMessage;
-          set(s => ({
-            messages: {
-              ...s.messages,
-              [bookingId]: [...(s.messages[bookingId] ?? []), msg],
-            },
-          }));
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  },
-}));
-
-// ── CLIENT STORE ──────────────────────────────────────────────────
-interface ClientStore {
-  clients: import('../models').Client[];
-  loading: boolean;
-  fetch: () => Promise<void>;
-  save: (c: Partial<import('../models').Client>) => Promise<void>;
-  remove: (id: string) => Promise<void>;
-}
-
-export const useClientStore = create<ClientStore>()((set) => ({
-  clients: [],
-  loading: false,
-
-  fetch: async () => {
-    set({ loading: true });
-    const { data } = await supabase
-      .from('clients')
-      .select('*, bookings(*)')
-      .order('name');
-    set({ clients: (data as import('../models').Client[]) ?? [], loading: false });
-  },
-
-  save: async (c) => {
-    if (c.id) {
-      await supabase.from('clients').update(c).eq('id', c.id);
-    } else {
-      await supabase.from('clients').insert(c);
-    }
-    useClientStore.getState().fetch();
-  },
-
-  remove: async (id) => {
-    await supabase.from('clients').delete().eq('id', id);
-    set(s => ({ clients: s.clients.filter(c => c.id !== id) }));
-  },
-}));
-
-// ── TESTIMONIAL STORE ─────────────────────────────────────────────
-export interface Testimonial {
-  id: string;
-  client_name: string;
-  service_id: string;
-  rating: number;
-  text: string;
-  approved: boolean;
-  created_at: string;
-}
-
-interface TestimonialStore {
-  testimonials: Testimonial[];
-  loading: boolean;
-  fetch: () => Promise<void>;
-  approve: (id: string) => Promise<void>;
-  reject: (id: string) => Promise<void>;
-  subscribeRealtime: () => () => void;
-}
-
-export const useTestimonialStore = create<TestimonialStore>()((set) => ({
-  testimonials: [],
-  loading: false,
-
-  fetch: async () => {
-    set({ loading: true });
-    const { data } = await supabase
-      .from('testimonials')
-      .select('*, client:clients(*)')
-      .order('created_at', { ascending: false });
-    set({ testimonials: (data as Testimonial[]) ?? [], loading: false });
-  },
-
-  approve: async (id) => {
-    await supabase.from('testimonials').update({ approved: true }).eq('id', id);
-    set(s => ({
-      testimonials: s.testimonials.map(t => t.id === id ? { ...t, approved: true } : t),
-    }));
-  },
-
-  reject: async (id) => {
-    await supabase.from('testimonials').delete().eq('id', id);
-    set(s => ({ testimonials: s.testimonials.filter(t => t.id !== id) }));
-  },
-
-  subscribeRealtime: () => {
-    const channel = supabase
-      .channel('testimonials-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'testimonials' },
-        (payload) => {
-          set(s => ({
-            testimonials: [payload.new as Testimonial, ...s.testimonials],
-          }));
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  },
-}));
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      isAuthenticated: false,
+      login: (username, password) => {
+        const ok =
+          username === ADMIN_CREDENTIALS.username &&
+          password === ADMIN_CREDENTIALS.password;
+        if (ok) set({ isAuthenticated: true });
+        return ok;
+      },
+      logout: () => set({ isAuthenticated: false }),
+    }),
+    { name: 'lumie-auth' }
+  )
+);
