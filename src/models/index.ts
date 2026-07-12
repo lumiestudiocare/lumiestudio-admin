@@ -1,21 +1,16 @@
-// ── DOMAIN MODELS ────────────────────────────────────────────────
-
-export type ServiceId =
-  | 'skincare'
-  | 'manicure'
-  | 'sobrancelhas'
-  | 'spa'
-  | 'consultoria';
+export type ServiceId = 'skincare' | 'manicure' | 'sobrancelhas' | 'spa' | 'consultoria';
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 export interface Service {
   id: ServiceId;
   name: string;
   description: string;
-  duration: number; // minutes
+  duration: number;
   price: number;
   icon: string;
   category: string;
   active: boolean;
+  created_at?: string;
 }
 
 export interface Professional {
@@ -23,50 +18,79 @@ export interface Professional {
   name: string;
   role: string;
   avatar: string;
-  services: ServiceId[];
-  availableDays: number[]; // 0=Sun..6=Sat
+  email?: string;
+  phone?: string;
+  bio?: string;
+  avatar_url?: string;
+  available_days: number[];
+  active: boolean;
+  services?: ServiceId[];
+  created_at?: string;
 }
-
-export interface TimeSlot {
-  time: string; // "HH:mm"
-  available: boolean;
-}
-
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 export interface Booking {
   id: string;
-  clientName: string;
-  clientPhone: string;
-  clientEmail: string;
-  serviceId: ServiceId;
-  professionalId: string;
-  date: string; // ISO yyyy-MM-dd
-  time: string; // HH:mm
-  notes: string;
-  status: BookingStatus;
-  createdAt: string;
-}
-
-export interface BookingFormData {
-  clientName: string;
-  clientPhone: string;
-  clientEmail: string;
-  serviceId: ServiceId | '';
-  professionalId: string;
+  client_name: string;
+  client_phone: string;
+  client_email: string;
+  service_id: ServiceId;
+  professional_id: string;
   date: string;
   time: string;
   notes: string;
+  status: BookingStatus;
+  payment_method?: string;
+  payment_id?: string;
+  payment_amount?: number;
+  paid_at?: string;
+  created_at: string;
+  updated_at?: string;
+  client_id?: string;
+  service?: Service;
+  professional?: Professional;
+  client?: Client;
 }
 
-export interface AdminUser {
-  username: string;
-  password: string; // hashed in real app
+export interface ChatMessage {
+  id: string;
+  booking_id: string;
+  sender: string;
+  sender_role: 'client' | 'admin';
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  type: 'new_booking' | 'payment_confirmed' | 'cancellation' | 'message';
+  title: string;
+  body: string;
+  booking_id?: string;
+  read: boolean;
+  created_at: string;
 }
 
 export interface DashboardStats {
   totalBookings: number;
   pendingBookings: number;
   confirmedToday: number;
-  completedThisMonth: number;
+  completedMonth: number;
+  revenueMonth: number;
+  revenueTotal: number;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  birthdate?: string;
+  notes?: string;
+  manutencao: number;
+  created_at: string;
+  updated_at?: string;
+  bookings?: Booking[];       // joined via client_id FK
+  total_spent?: number;       // computed
+  last_visit?: string;        // computed
 }
