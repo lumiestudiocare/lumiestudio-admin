@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/lumiestudiocare/lumiestudio-admin/compare/v1.0.0...v1.1.0) (2026-07-12)
+
+
+### Features
+
+* **services:** respeitar o toggle 'active' do painel admin no site público ([4a6667a](https://github.com/lumiestudiocare/lumiestudio-admin/commit/4a6667ace91e0bd7e2cf8d2e0fd6b23e2d2f51f7))
+
 # 1.0.0 (2026-03-18)
 
 
