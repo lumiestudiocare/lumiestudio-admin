@@ -110,6 +110,16 @@ create policy "services_public_read"      on services      for select using (tru
 create policy "professionals_public_read" on professionals  for select using (true);
 create policy "prof_services_public_read" on professional_services for select using (true);
 
+-- Admin autenticado pode gerenciar serviços, profissionais e ligações
+create policy "services_manage_auth" on services
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+create policy "professionals_manage_auth" on professionals
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+create policy "professional_services_manage_auth" on professional_services
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
 -- Bookings: cliente pode inserir, admin lê/edita tudo
 create policy "bookings_insert_public" on bookings for insert with check (true);
 create policy "bookings_select_public" on bookings for select using (true);

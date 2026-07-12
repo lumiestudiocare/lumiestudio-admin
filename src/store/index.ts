@@ -156,7 +156,28 @@ export const useServiceStore = create<ServiceStore>()((set) => ({
   },
 
   toggle: async (id, active) => {
-    await supabase.from('services').update({ active }).eq('id', id);
+    const { data: links, error: linksError } = await supabase
+      .from('professional_services')
+      .select('professional_id')
+      .eq('service_id', id);
+
+    if (linksError) throw linksError;
+
+    const { data: professionals, error: professionalsError } = await supabase
+      .from('professionals')
+      .select('id')
+      .eq('active', true);
+
+    if (professionalsError) throw professionalsError;
+
+    const hasAvailableProfessional = (links ?? []).some((link: { professional_id: string }) =>
+      (professionals ?? []).some((professional: { id: string }) => professional.id === link.professional_id)
+    );
+
+    const nextActive = active && hasAvailableProfessional;
+    const { error } = await supabase.from('services').update({ active: nextActive }).eq('id', id);
+    if (error) throw error;
+
     useServiceStore.getState().fetch();
   },
 }));

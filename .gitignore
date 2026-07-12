@@ -1,8 +1,12 @@
-node_modules
-dist
+# Diretorios
+/dist/
+/node_modules/
+/supabase/
+
+# Arquivos
+*.log
 .env.local
 .env
 *.local
 .DS_Store
 package-lock.json
-/supabase/
