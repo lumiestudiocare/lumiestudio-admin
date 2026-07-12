@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/lumiestudiocare/lumiestudio-admin/compare/v1.1.0...v1.1.1) (2026-07-12)
+
+
+### Reverts
+
+* Revert "feat(services): respeitar o toggle 'active' do painel admin no site público" ([d04a06a](https://github.com/lumiestudiocare/lumiestudio-admin/commit/d04a06a295e4129fa82cfdcd67bcfdcc9203863e))
+
 # [1.1.0](https://github.com/lumiestudiocare/lumiestudio-admin/compare/v1.0.0...v1.1.0) (2026-07-12)
 
 
