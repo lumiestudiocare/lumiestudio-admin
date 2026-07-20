@@ -24,6 +24,7 @@ export interface Professional {
   avatar_url?: string;
   available_days: number[];
   active: boolean;
+  infinitepay_handle?: string | null;
   services?: ServiceId[];
   created_at?: string;
 }
@@ -42,6 +43,7 @@ export interface Booking {
   payment_method?: string;
   payment_id?: string;
   payment_amount?: number;
+  platform_fee_amount?: number;
   paid_at?: string;
   created_at: string;
   updated_at?: string;

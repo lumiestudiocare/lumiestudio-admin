@@ -58,6 +58,19 @@ export const ReportsPage: React.FC = () => {
   const thisMonthRev   = bookings.filter(b => b.created_at?.startsWith(thisMonthKey) && b.status !== 'cancelled').reduce((s, b) => s + (b.payment_amount ?? 0), 0);
   const cancelRate     = bookings.length > 0 ? ((bookings.filter(b => b.status === 'cancelled').length / bookings.length) * 100).toFixed(1) : '0.0';
 
+  // Taxa de serviço online (InfinitePay) a repassar — cai na conta da
+  // profissional junto com o pagamento, ela repassa depois pra você.
+  const feesOwed = useMemo(() => {
+    const map: Record<string, number> = {};
+    bookings.forEach(b => {
+      if (b.status === 'cancelled' || !b.platform_fee_amount) return;
+      const k = b.professional?.name ?? b.professional_id;
+      map[k] = (map[k] ?? 0) + b.platform_fee_amount;
+    });
+    return Object.entries(map).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total);
+  }, [bookings]);
+  const totalFeesOwed = feesOwed.reduce((s, f) => s + f.total, 0);
+
   return (
     <AdminLayout title="Relatórios" subtitle="Análise financeira e de desempenho">
 
@@ -157,6 +170,34 @@ export const ReportsPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Taxa de serviço online a repassar (pagamentos InfinitePay) */}
+      {feesOwed.length > 0 && (
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--brown)', marginBottom: '.3rem' }}>
+            Taxa de serviço online a repassar
+          </h3>
+          <p style={{ fontSize: '.78rem', color: 'var(--text-soft)', marginBottom: '1rem' }}>
+            Pagamentos via InfinitePay caem 100% + 10% direto na conta da profissional.
+            Este é o total que cada uma deve repassar pra você.
+          </p>
+          <table>
+            <thead><tr><th>Profissional</th><th>Taxa acumulada</th></tr></thead>
+            <tbody>
+              {feesOwed.map(f => (
+                <tr key={f.name}>
+                  <td style={{ color: 'var(--text)' }}>{f.name}</td>
+                  <td><span style={{ fontFamily: 'var(--font-display)', color: 'var(--gold)' }}>{fmt(f.total)}</span></td>
+                </tr>
+              ))}
+              <tr>
+                <td style={{ color: 'var(--brown)', fontWeight: 600 }}>Total</td>
+                <td><span style={{ fontFamily: 'var(--font-display)', color: 'var(--brown)', fontWeight: 600 }}>{fmt(totalFeesOwed)}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
     </AdminLayout>
   );
 };
